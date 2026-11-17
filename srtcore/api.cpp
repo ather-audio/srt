@@ -1023,6 +1023,30 @@ int srt::CUDTUnited::installAcceptHook(const SRTSOCKET lsn, srt_listen_callback_
     return 0;
 }
 
+int srt::CUDT::listenerHsStats(SRTSOCKET lsn, SRT_LISTENER_HSSTATS* w_stats)
+{
+    return uglobal().listenerHsStats(lsn, w_stats);
+}
+
+int srt::CUDTUnited::listenerHsStats(const SRTSOCKET lsn, SRT_LISTENER_HSSTATS* w_stats)
+{
+    try
+    {
+        if (!w_stats)
+            throw CUDTException(MJ_NOTSUP, MN_INVAL, 0);
+
+        CUDTSocket* s = locateSocket(lsn, ERH_THROW);
+        s->core().getListenerHsStats(w_stats);
+    }
+    catch (CUDTException& e)
+    {
+        SetThreadLocalError(e);
+        return SRT_ERROR;
+    }
+
+    return 0;
+}
+
 int srt::CUDT::installConnectHook(SRTSOCKET lsn, srt_connect_callback_fn* hook, void* opaq)
 {
     return uglobal().installConnectHook(lsn, hook, opaq);

@@ -30,6 +30,7 @@
 | [srt_accept](#srt_accept)                         | Accepts a connection; creates/returns a new socket or group ID                                                 |
 | [srt_accept_bond](#srt_accept_bond)               | Accepts a connection pending on any sockets passed in the `listeners` array <br/> of `nlisteners` size               |
 | [srt_listen_callback](#srt_listen_callback)       | Installs/executes a callback hook on a socket created to handle the incoming connection <br/> on a listening socket  |
+| [srt_listener_hsstats](#srt_listener_hsstats)     | Reports the handshakes a listening socket has received, to detect callers whose handshake never completes      |
 | [srt_connect](#srt_connect)                       | Connects a socket or a group to a remote party with a specified address and port                               |
 | [srt_connect_bind](#srt_connect_bind)             | Same as [`srt_bind`](#srt_bind) then [`srt_connect`](#srt_connect) if called with socket [`u`](#u)             |
 | [srt_connect_debug](#srt_connect_debug)           | Same as [`srt_connect`](#srt_connect)but allows specifying ISN (developers only)                               |
@@ -833,6 +834,55 @@ on the associated UDP socket. In the case of a listener socket this means the
 listener socket itself and every socket accepted off this listener socket.
 Avoid any extensive search operations. It is best to cache in memory whatever
 database you have to check against the data received in `streamid` or `peeraddr`.
+
+
+[:arrow_up: &nbsp; Back to List of Functions & Structures](#srt-api-functions)
+
+---
+
+### srt_listener_hsstats
+
+```
+typedef struct SRT_LISTENER_HSSTATS
+{
+    int64_t inductions;
+    int64_t conclusions;
+    int64_t accepted;
+    int64_t rejected;
+    struct sockaddr_storage last_induction_peer;
+    struct sockaddr_storage last_conclusion_peer;
+} SRT_LISTENER_HSSTATS;
+
+int srt_listener_hsstats(SRTSOCKET lsn, SRT_LISTENER_HSSTATS* stats);
+```
+
+Fills `stats` with counters of the handshake requests the listening socket `lsn` has
+received since it was created:
+
+* `inductions`: induction requests, the first message a caller sends
+* `conclusions`: conclusion requests that carried a valid cookie, the second message,
+sent only after the caller received the listener's induction response
+* `accepted`: new connections created from a conclusion
+* `rejected`: conclusions that were rejected
+* `last_induction_peer`, `last_conclusion_peer`: the address the latest of each came from
+(`ss_family` is 0 when none has arrived)
+
+A caller keeps resending its induction request until it hears the response. So
+`inductions` growing while `conclusions` stays still means the requests arrive but
+the responses never reach the caller, for example because they leave through an
+interface a firewall blocks.
+
+This function is an addition of the Ather Audio fork.
+
+|      Returns                  |                                                           |
+|:----------------------------- |:--------------------------------------------------------- |
+|  0                            | Success                                                   |
+| `SRT_ERROR`                   | (-1) on error                                             |
+
+|       Errors                          |                                                   |
+|:------------------------------------- |:------------------------------------------------- |
+| [`SRT_EINVSOCK`](#srt_einvsock)       | `lsn` is not a valid socket ID                    |
+| [`SRT_EINVPARAM`](#srt_einvparam)     | `stats` is NULL                                   |
 
 
 [:arrow_up: &nbsp; Back to List of Functions & Structures](#srt-api-functions)

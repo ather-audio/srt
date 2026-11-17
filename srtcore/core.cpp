@@ -407,6 +407,11 @@ void srt::CUDT::construct()
     // Will be reset to 0 for HSv5, this value is important for HSv4.
     m_iSndHsRetryCnt = SRT_MAX_HSRETRY + 1;
 
+    m_iListenerInductions  = 0;
+    m_iListenerConclusions = 0;
+    m_iListenerAccepted    = 0;
+    m_iListenerRejected    = 0;
+
     m_PeerID              = 0;
     m_bOpened             = false;
     m_bListening          = false;
@@ -11857,6 +11862,9 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
         HLOGC(cnlog.Debug,
               log << CONID() << "processConnectRequest: received type=induction, sending back with cookie+socket");
 
+        ++m_iListenerInductions;
+        recordListenerPeer((m_ListenerInductionPeer), addr);
+
         // XXX That looks weird - the calculated md5 sum out of the given host/port/timestamp
         // is 16 bytes long, but CHandShake::m_iCookie has 4 bytes. This then effectively copies
         // only the first 4 bytes. Moreover, it's dangerous on some platforms because the char
@@ -11933,6 +11941,9 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
 
     SRTSOCKET id = hs.m_iID;
 
+    ++m_iListenerConclusions;
+    recordListenerPeer((m_ListenerConclusionPeer), addr);
+
     // HANDSHAKE: The old client sees the version that does not match HS_VERSION_UDT4 (5).
     // In this case it will respond with URQ_ERROR_REJECT. Rest of the data are the same
     // as in the handshake request. When this message is received, the connector side should
@@ -11972,6 +11983,7 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
 
     if (!accepted_hs)
     {
+        ++m_iListenerRejected;
         HLOGC(cnlog.Debug,
               log << CONID() << "processConnectRequest: version/type mismatch. Sending REJECT code:" << m_RejectReason
                   << " MSG: " << srt_rejectreason_str(m_RejectReason));
@@ -12065,6 +12077,7 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
 
         if (result == 1)
         {
+            ++m_iListenerAccepted;
             // BUG! There is no need to update write-readiness on the listener socket once new connection is accepted.
             // Only read-readiness has to be updated, but it is done so in the newConnection(..) function.
             // See PR #1831 and issue #1667.
@@ -12079,6 +12092,7 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
         }
         else if (result == -1)
         {
+            ++m_iListenerRejected;
             // The new connection failed
             // or the connection already existed, but manually sending the HS response above has failed.
             // HSv4: Send the SHUTDOWN message to the peer (see PR #2010) in order to disallow the peer to connect.
@@ -12112,6 +12126,21 @@ int srt::CUDT::processConnectRequest(const sockaddr_any& addr, CPacket& packet)
     LOGC(cnlog.Debug, log << CONID() << "listen ret: " << hs.m_iReqType << " - " << RequestTypeStr(hs.m_iReqType));
 
     return RejectReasonForURQ(hs.m_iReqType);
+}
+
+void srt::CUDT::getListenerHsStats(SRT_LISTENER_HSSTATS* w_stats)
+{
+    memset(w_stats, 0, sizeof *w_stats);
+    w_stats->inductions  = m_iListenerInductions.load();
+    w_stats->conclusions = m_iListenerConclusions.load();
+    w_stats->accepted    = m_iListenerAccepted.load();
+    w_stats->rejected    = m_iListenerRejected.load();
+
+    sync::ScopedLock lock(m_ListenerPeerLock);
+    if (m_ListenerInductionPeer.family() == AF_INET || m_ListenerInductionPeer.family() == AF_INET6)
+        memcpy(&w_stats->last_induction_peer, m_ListenerInductionPeer.get(), m_ListenerInductionPeer.size());
+    if (m_ListenerConclusionPeer.family() == AF_INET || m_ListenerConclusionPeer.family() == AF_INET6)
+        memcpy(&w_stats->last_conclusion_peer, m_ListenerConclusionPeer.get(), m_ListenerConclusionPeer.size());
 }
 
 void srt::CUDT::addLossRecord(std::vector<int32_t> &lr, int32_t lo, int32_t hi)

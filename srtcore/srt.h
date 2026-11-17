@@ -771,6 +771,17 @@ typedef int srt_listen_callback_fn   (void* opaq, SRTSOCKET ns, int hsversion, c
 SRT_API       int srt_listen_callback(SRTSOCKET lsn, srt_listen_callback_fn* hook_fn, void* hook_opaque);
 typedef void srt_connect_callback_fn  (void* opaq, SRTSOCKET ns, int errorcode, const struct sockaddr* peeraddr, int token);
 SRT_API       int srt_connect_callback(SRTSOCKET clr, srt_connect_callback_fn* hook_fn, void* hook_opaque);
+
+typedef struct SRT_LISTENER_HSSTATS
+{
+    int64_t inductions;
+    int64_t conclusions;
+    int64_t accepted;
+    int64_t rejected;
+    struct sockaddr_storage last_induction_peer;
+    struct sockaddr_storage last_conclusion_peer;
+} SRT_LISTENER_HSSTATS;
+SRT_API       int srt_listener_hsstats(SRTSOCKET lsn, SRT_LISTENER_HSSTATS* stats);
 SRT_API       int srt_connect      (SRTSOCKET u, const struct sockaddr* name, int namelen);
 SRT_API       int srt_connect_debug(SRTSOCKET u, const struct sockaddr* name, int namelen, int forced_isn);
 SRT_API       int srt_connect_bind (SRTSOCKET u, const struct sockaddr* source,

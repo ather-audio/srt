@@ -295,6 +295,7 @@ public:
                       CUDT*&              w_acpu);
 
     int installAcceptHook(const SRTSOCKET lsn, srt_listen_callback_fn* hook, void* opaq);
+    int listenerHsStats(const SRTSOCKET lsn, SRT_LISTENER_HSSTATS* w_stats);
     int installConnectHook(const SRTSOCKET lsn, srt_connect_callback_fn* hook, void* opaq);
 
     /// Check the status of the UDT socket.

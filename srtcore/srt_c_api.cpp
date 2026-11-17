@@ -396,6 +396,11 @@ int srt_listen_callback(SRTSOCKET lsn, srt_listen_callback_fn* hook, void* opaq)
     return CUDT::installAcceptHook(lsn, hook, opaq);
 }
 
+int srt_listener_hsstats(SRTSOCKET lsn, SRT_LISTENER_HSSTATS* stats)
+{
+    return CUDT::listenerHsStats(lsn, stats);
+}
+
 int srt_connect_callback(SRTSOCKET lsn, srt_connect_callback_fn* hook, void* opaq)
 {
     return CUDT::installConnectHook(lsn, hook, opaq);

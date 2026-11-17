@@ -1167,8 +1167,27 @@ private: // Receiving related data
 
     CallbackHolder<srt_listen_callback_fn> m_cbAcceptHook;
     CallbackHolder<srt_connect_callback_fn> m_cbConnectHook;
+
+    sync::atomic<int64_t> m_iListenerInductions;
+    sync::atomic<int64_t> m_iListenerConclusions;
+    sync::atomic<int64_t> m_iListenerAccepted;
+    sync::atomic<int64_t> m_iListenerRejected;
+    sync::Mutex m_ListenerPeerLock;
+    sockaddr_any m_ListenerInductionPeer;
+    sockaddr_any m_ListenerConclusionPeer;
+
+    void recordListenerPeer(sockaddr_any& w_slot, const sockaddr_any& peer)
+    {
+        sync::ScopedLock lock(m_ListenerPeerLock);
+        w_slot = peer;
+    }
+
+public:
+    void getListenerHsStats(SRT_LISTENER_HSSTATS* w_stats);
+
     // FORWARDER
 public:
+    static int listenerHsStats(SRTSOCKET lsn, SRT_LISTENER_HSSTATS* w_stats);
     static int installAcceptHook(SRTSOCKET lsn, srt_listen_callback_fn* hook, void* opaq);
     static int installConnectHook(SRTSOCKET lsn, srt_connect_callback_fn* hook, void* opaq);
     static enum HandshakeSide compareCookies(int32_t req, int32_t res);
